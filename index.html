@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#245f56">
+  <title>人物描寫分類互動白板</title>
+  <style>
+    :root {
+      --ink: #17312e;
+      --muted: #5f716e;
+      --paper: #fffdf7;
+      --green: #245f56;
+      --green-dark: #19473f;
+      --green-soft: #dcefe8;
+      --gold: #e4aa3e;
+      --gold-soft: #fff0c7;
+      --rose: #c85f73;
+      --rose-soft: #ffe3e8;
+      --blue: #4179a8;
+      --blue-soft: #e2f1ff;
+      --shadow: 0 8px 22px rgba(27, 69, 62, .13);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { min-height: 100%; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(228,170,62,.12) 0 7rem, transparent 7.1rem),
+        radial-gradient(circle at 88% 24%, rgba(65,121,168,.09) 0 9rem, transparent 9.1rem),
+        #f1f7f3;
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button { font: inherit; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem clamp(1rem, 3vw, 2.5rem);
+      color: white;
+      background: rgba(25, 71, 63, .96);
+      box-shadow: 0 3px 18px rgba(20, 57, 51, .22);
+      backdrop-filter: blur(10px);
+    }
+
+    .brand { min-width: 13rem; }
+    .eyebrow {
+      margin: 0 0 .18rem;
+      color: #f6d88f;
+      font-size: .82rem;
+      font-weight: 800;
+      letter-spacing: .16em;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(1.2rem, 2.3vw, 1.75rem);
+      line-height: 1.2;
+      letter-spacing: .04em;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: .65rem;
+    }
+
+    .btn {
+      min-height: 3rem;
+      padding: .72rem 1rem;
+      border: 2px solid rgba(255,255,255,.55);
+      border-radius: .8rem;
+      color: white;
+      background: rgba(255,255,255,.10);
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
+    }
+    .btn:hover { background: rgba(255,255,255,.19); }
+    .btn:active { transform: translateY(1px); }
+    .btn:focus-visible, .card:focus-visible, .choice-btn:focus-visible {
+      outline: 4px solid #ffd66b;
+      outline-offset: 3px;
+    }
+    .btn.primary {
+      border-color: #f2c862;
+      color: #27332f;
+      background: #f2c862;
+    }
+
+    .level-switch {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .75rem;
+      margin-bottom: 1rem;
+      padding: .55rem;
+      border: 1px solid #cddfd9;
+      border-radius: 1rem;
+      background: rgba(255,255,255,.82);
+      box-shadow: 0 3px 14px rgba(27,69,62,.07);
+    }
+    .level-btn {
+      min-height: 3.35rem;
+      padding: .7rem 1rem;
+      border: 2px solid transparent;
+      border-radius: .75rem;
+      color: #36514c;
+      background: transparent;
+      font-size: clamp(1rem, 1.6vw, 1.16rem);
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .level-btn:hover { background: #edf5f2; }
+    .level-btn.active {
+      border-color: var(--green);
+      color: white;
+      background: var(--green);
+      box-shadow: 0 4px 12px rgba(36,95,86,.2);
+    }
+    .level-btn:focus-visible {
+      outline: 4px solid #ffd66b;
+      outline-offset: 3px;
+    }
+
+    main {
+      width: min(1680px, 100%);
+      margin: 0 auto;
+      padding: clamp(1rem, 2.5vw, 2rem);
+    }
+
+    .instruction {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      padding: 1rem 1.2rem;
+      border: 1px solid #d6e5df;
+      border-radius: 1rem;
+      background: rgba(255,255,255,.85);
+      box-shadow: 0 3px 14px rgba(27,69,62,.07);
+    }
+    .instruction p { margin: 0; font-size: clamp(1rem, 1.7vw, 1.25rem); line-height: 1.6; }
+    .instruction strong { color: var(--green); }
+    .progress {
+      min-width: 9rem;
+      padding: .65rem 1rem;
+      border-radius: 999px;
+      color: white;
+      background: var(--green);
+      text-align: center;
+      font-size: 1.05rem;
+      font-weight: 900;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: minmax(280px, 1.05fr) minmax(0, 2.4fr);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .panel, .zone {
+      border: 3px solid transparent;
+      border-radius: 1.2rem;
+      background: rgba(255,255,255,.88);
+      box-shadow: var(--shadow);
+      transition: border-color .15s ease, transform .15s ease, background .15s ease;
+    }
+
+    .panel {
+      position: sticky;
+      top: 6.6rem;
+      min-height: 60vh;
+      padding: 1rem;
+      border-color: #c8ddd5;
+    }
+
+    .panel.is-over, .zone.is-over {
+      border-color: var(--gold);
+      background: #fffaf0;
+      transform: translateY(-2px);
+    }
+
+    .panel-head, .zone-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      margin-bottom: .8rem;
+    }
+    h2, h3 { margin: 0; }
+    h2 { font-size: clamp(1.15rem, 2vw, 1.45rem); }
+    h3 { font-size: clamp(1.12rem, 2vw, 1.42rem); }
+    .count {
+      flex: none;
+      min-width: 2.25rem;
+      padding: .26rem .55rem;
+      border-radius: 999px;
+      color: white;
+      background: var(--green);
+      text-align: center;
+      font-weight: 900;
+    }
+
+    .pool-note {
+      margin: -.25rem 0 .85rem;
+      color: var(--muted);
+      font-size: .92rem;
+      line-height: 1.5;
+    }
+
+    .card-list {
+      display: grid;
+      gap: .72rem;
+      min-height: 5.5rem;
+    }
+
+    .zones {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .zone {
+      min-height: 62vh;
+      padding: 1rem;
+    }
+    .zone[data-zone="zone1"] { border-color: #efc4cc; }
+    .zone[data-zone="zone2"] { border-color: #c9ddf0; }
+    .zone[data-zone="zone3"] { border-color: #efdba9; }
+
+    .zone-kicker {
+      margin: 0 0 .2rem;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+    }
+    .zone[data-zone="zone1"] h3 { color: #9f4054; }
+    .zone[data-zone="zone2"] h3 { color: #285f8c; }
+    .zone[data-zone="zone3"] h3 { color: #8b6317; }
+
+    .empty-hint {
+      display: grid;
+      min-height: 8rem;
+      place-items: center;
+      padding: 1rem;
+      border: 2px dashed #bdcfca;
+      border-radius: .85rem;
+      color: #6d7f7b;
+      text-align: center;
+      font-size: 1rem;
+      line-height: 1.55;
+      pointer-events: none;
+    }
+    .card-list:not(:empty) + .empty-hint { display: none; }
+
+    .card {
+      position: relative;
+      width: 100%;
+      padding: .95rem 1rem 1rem;
+      border: 2px solid #c8d8d3;
+      border-left: 7px solid var(--green);
+      border-radius: .9rem;
+      color: var(--ink);
+      background: var(--paper);
+      box-shadow: 0 4px 12px rgba(30, 61, 56, .10);
+      font-size: clamp(1rem, 1.45vw, 1.2rem);
+      line-height: 1.62;
+      text-align: left;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(30,61,56,.15); }
+    .card:active { cursor: grabbing; }
+    .card.is-selected {
+      border-color: var(--gold);
+      border-left-color: var(--gold);
+      box-shadow: 0 0 0 4px rgba(228,170,62,.22), 0 8px 18px rgba(30,61,56,.15);
+    }
+    .card.is-dragging {
+      position: fixed;
+      z-index: 1000;
+      margin: 0;
+      pointer-events: none;
+      opacity: .96;
+      transform: rotate(-1deg) scale(1.02);
+      box-shadow: 0 18px 42px rgba(20, 50, 45, .28);
+    }
+    .placeholder {
+      min-height: 6rem;
+      border: 3px dashed #d4ad50;
+      border-radius: .9rem;
+      background: rgba(255,238,193,.45);
+    }
+    .answer-tag {
+      display: none;
+      width: fit-content;
+      margin: 0 0 .55rem;
+      padding: .24rem .58rem;
+      border-radius: 999px;
+      color: white;
+      background: var(--green);
+      font-size: .76rem;
+      font-weight: 900;
+      letter-spacing: .04em;
+    }
+    body.show-answers .answer-tag { display: block; }
+    body.show-answers .card.correct { border-color: #4c9b72; border-left-color: #4c9b72; }
+    body.show-answers .card.wrong { border-color: #d85d5d; border-left-color: #d85d5d; background: #fff6f4; }
+
+    .choice-dock {
+      position: sticky;
+      bottom: .8rem;
+      z-index: 20;
+      display: none;
+      grid-template-columns: auto repeat(4, minmax(0, 1fr));
+      align-items: center;
+      gap: .55rem;
+      width: min(950px, calc(100% - 1rem));
+      margin: 1rem auto 0;
+      padding: .65rem;
+      border: 2px solid #d4e2dd;
+      border-radius: 1rem;
+      background: rgba(255,255,255,.97);
+      box-shadow: 0 12px 32px rgba(24,63,56,.24);
+    }
+    .choice-dock.open { display: grid; }
+    .choice-label { padding: 0 .4rem; font-weight: 900; white-space: nowrap; }
+    .choice-btn {
+      min-height: 3.1rem;
+      padding: .55rem .72rem;
+      border: 0;
+      border-radius: .7rem;
+      color: var(--ink);
+      background: #e7f0ed;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .choice-btn[data-target="zone1"] { background: var(--rose-soft); color: #8e3347; }
+    .choice-btn[data-target="zone2"] { background: var(--blue-soft); color: #255a85; }
+    .choice-btn[data-target="zone3"] { background: var(--gold-soft); color: #79540f; }
+    .choice-btn[data-target="pool"] { color: #4c625e; background: #e8efed; }
+    .choice-btn:hover { filter: brightness(.97); box-shadow: inset 0 0 0 2px currentColor; }
+
+    .toast {
+      position: fixed;
+      right: 1rem;
+      bottom: 1rem;
+      z-index: 1200;
+      max-width: min(420px, calc(100% - 2rem));
+      padding: .85rem 1rem;
+      border-radius: .8rem;
+      color: white;
+      background: #193f39;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      font-weight: 800;
+      opacity: 0;
+      transform: translateY(1rem);
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    .sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+
+    @media (max-width: 1150px) {
+      .board { grid-template-columns: 1fr; }
+      .panel { position: static; min-height: auto; }
+      .panel .card-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .zones { grid-template-columns: 1fr; }
+      .zone { min-height: 15rem; }
+      .zone .card-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 720px) {
+      .topbar { position: static; align-items: flex-start; flex-direction: column; }
+      .toolbar { justify-content: flex-start; width: 100%; }
+      .toolbar .btn { flex: 1 1 9rem; }
+      .level-switch { grid-template-columns: 1fr; }
+      .instruction { grid-template-columns: 1fr; }
+      .progress { justify-self: start; }
+      .panel .card-list, .zone .card-list { grid-template-columns: 1fr; }
+      .choice-dock { grid-template-columns: repeat(2, 1fr); }
+      .choice-label { grid-column: 1 / -1; text-align: center; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+
+    @media print {
+      .topbar { position: static; background: white; color: var(--ink); box-shadow: none; }
+      .eyebrow { color: var(--green); }
+      .toolbar, .instruction, .choice-dock, .toast { display: none !important; }
+      .board { grid-template-columns: 1fr 2.5fr; }
+      .panel { position: static; }
+      .panel, .zone, .card { box-shadow: none; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <p class="eyebrow">策略 6｜分類・描述・命名</p>
+      <h1>人物描寫分類互動白板</h1>
+    </div>
+    <div class="toolbar" aria-label="教師工具">
+      <button class="btn" id="answerBtn" type="button" aria-pressed="false">顯示參考答案</button>
+      <button class="btn primary" id="resetBtn" type="button">重新分類</button>
+    </div>
+  </header>
+
+  <main>
+    <nav class="level-switch" aria-label="關卡選擇">
+      <button class="level-btn active" type="button" data-level="people" aria-pressed="true">第一關｜依人物分類</button>
+      <button class="level-btn" type="button" data-level="writing" aria-pressed="false">第二關｜依寫作類別分類</button>
+    </nav>
+
+    <section class="instruction" aria-label="操作說明">
+      <p id="instructionText"><strong>任務：</strong>讀一讀每張人物描寫牌卡，把它拖到合適的人物區。也可以先點選牌卡，再按下方的分類按鈕。</p>
+      <div class="progress" id="progress" aria-live="polite">已分類 0／10</div>
+    </section>
+
+    <div class="board">
+      <section class="panel drop-zone" data-zone="pool" aria-labelledby="poolTitle">
+        <div class="panel-head">
+          <h2 id="poolTitle">待分類牌卡</h2>
+          <span class="count" data-count="pool">10</span>
+        </div>
+        <p class="pool-note">拖曳牌卡，或點一下牌卡後選擇分類。牌卡順序每次重置都會重新排列。</p>
+        <div class="card-list" id="pool"></div>
+        <div class="empty-hint">全部牌卡都已分類，可以開始說明你的判斷理由！</div>
+      </section>
+
+      <div class="zones" id="zones" aria-label="人物分類區">
+        <section class="zone drop-zone" data-zone="zone1" aria-labelledby="zone1Title">
+          <div class="zone-head">
+            <div>
+              <p class="zone-kicker" data-zone-kicker="zone1">人物一</p>
+              <h3 id="zone1Title" data-zone-title="zone1">美如奶奶</h3>
+            </div>
+            <span class="count" data-count="zone1">0</span>
+          </div>
+          <div class="card-list" id="zone1"></div>
+          <div class="empty-hint" data-zone-hint="zone1">把描寫「美如奶奶」的牌卡放到這裡</div>
+        </section>
+
+        <section class="zone drop-zone" data-zone="zone2" aria-labelledby="zone2Title">
+          <div class="zone-head">
+            <div>
+              <p class="zone-kicker" data-zone-kicker="zone2">人物二</p>
+              <h3 id="zone2Title" data-zone-title="zone2">我的好朋友</h3>
+            </div>
+            <span class="count" data-count="zone2">0</span>
+          </div>
+          <div class="card-list" id="zone2"></div>
+          <div class="empty-hint" data-zone-hint="zone2">把描寫「我的好朋友」的牌卡放到這裡</div>
+        </section>
+
+        <section class="zone drop-zone" data-zone="zone3" aria-labelledby="zone3Title">
+          <div class="zone-head">
+            <div>
+              <p class="zone-kicker" data-zone-kicker="zone3">人物三</p>
+              <h3 id="zone3Title" data-zone-title="zone3">媽媽的變化</h3>
+            </div>
+            <span class="count" data-count="zone3">0</span>
+          </div>
+          <div class="card-list" id="zone3"></div>
+          <div class="empty-hint" data-zone-hint="zone3">把描寫「媽媽的變化」的牌卡放到這裡</div>
+        </section>
+      </div>
+    </div>
+
+    <div class="choice-dock" id="choiceDock" aria-label="點選分類工具">
+      <span class="choice-label">把選取的牌卡移到：</span>
+      <button class="choice-btn" type="button" data-target="zone1">美如奶奶</button>
+      <button class="choice-btn" type="button" data-target="zone2">我的好朋友</button>
+      <button class="choice-btn" type="button" data-target="zone3">媽媽的變化</button>
+      <button class="choice-btn" type="button" data-target="pool">待分類區</button>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="sr-only" id="liveRegion" aria-live="polite"></div>
+
+  <template id="cardTemplate">
+    <article class="card" role="button" tabindex="0" aria-pressed="false">
+      <span class="answer-tag"></span>
+      <span class="card-text"></span>
+    </article>
+  </template>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const levels = {
+        people: {
+          label: "第一關｜依人物分類",
+          instruction: "讀一讀每張人物描寫牌卡，把它拖到合適的人物區。也可以先點選牌卡，再按下方的分類按鈕。",
+          ariaLabel: "人物分類區",
+          zones: {
+            zone1: { name: "美如奶奶", kicker: "人物一", hint: "把描寫「美如奶奶」的牌卡放到這裡" },
+            zone2: { name: "我的好朋友", kicker: "人物二", hint: "把描寫「我的好朋友」的牌卡放到這裡" },
+            zone3: { name: "媽媽的變化", kicker: "人物三", hint: "把描寫「媽媽的變化」的牌卡放到這裡" }
+          }
+        },
+        writing: {
+          label: "第二關｜依寫作類別分類",
+          instruction: "判斷每張牌卡運用了哪一種人物描寫內容，把它拖到合適的寫作類別。完成後，試著說出判斷線索。",
+          ariaLabel: "寫作類別分類區",
+          zones: {
+            zone1: { name: "外型描寫", kicker: "看見的樣子", hint: "外貌、身材、五官、髮型等描寫" },
+            zone2: { name: "興趣、事件與行為", kicker: "做了什麼", hint: "興趣、經歷、動作或日常行為" },
+            zone3: { name: "情感與期望", kicker: "心裡的感受", hint: "對人物的情感、影響或未來期望" }
+          }
+        }
+      };
+
+      const cards = [
+        {
+          id: "mother-1",
+          answers: { people: "zone3", writing: "zone1" },
+          text: "那烏黑而濃密的頭髮，襯托著端莊秀麗的面龐。薄薄的雙唇微微笑著，露出整齊的、像白玉般的牙齒，一雙明亮的大眼睛在長長的睫毛下閃爍著青春的光彩。"
+        },
+        {
+          id: "mother-2",
+          answers: { people: "zone3", writing: "zone1" },
+          text: "稀疏的頭髮夾雜著許多銀絲。瘦削的面龐上，兩道皺紋橫在眉毛之間；嘴巴乾澀，嘴角被皺紋牽得向後咧"
+        },
+        {
+          id: "mother-3",
+          answers: { people: "zone3", writing: "zone3" },
+          text: "我愛我的媽媽。我心疼我的媽媽。"
+        },
+        {
+          id: "friend-1",
+          answers: { people: "zone2", writing: "zone2" },
+          text: "他最喜歡打羽毛球，因為打球時要經常走動，需要敏捷的反應和良好的體能，所以每當成功得分，他就會有很大的滿足感。"
+        },
+        {
+          id: "friend-2",
+          answers: { people: "zone2", writing: "zone1" },
+          text: "啟明的個子不高不矮、不胖不瘦。"
+        },
+        {
+          id: "friend-3",
+          answers: { people: "zone2", writing: "zone1" },
+          text: "他的臉蛋圓圓，一雙眼睛烏黑發亮，充滿神采；鼻子不算高，但挺直；薄薄的嘴唇下藏著整齊的牙齒"
+        },
+        {
+          id: "friend-4",
+          answers: { people: "zone2", writing: "zone3" },
+          text: "我希望以後我們的友誼會越來越深厚。"
+        },
+        {
+          id: "grandma-1",
+          answers: { people: "zone1", writing: "zone1" },
+          text: "美如奶奶個子不高，有著圓圓的臉蛋和一頭灰白的短髮。"
+        },
+        {
+          id: "grandma-2",
+          answers: { people: "zone1", writing: "zone3" },
+          text: "常到書店的我們，因為美如奶奶，也跟書本變成好朋友、成為真正的愛書人。"
+        },
+        {
+          id: "grandma-3",
+          answers: { people: "zone1", writing: "zone2" },
+          text: "美如奶奶有時會把書上的書一本本排好，有時會小心拾文具區散落的東西，有時她會坐在一張特製的高腳椅上專心看書。"
+        }
+      ];
+
+      const pool = document.getElementById("pool");
+      const template = document.getElementById("cardTemplate");
+      const choiceDock = document.getElementById("choiceDock");
+      const answerBtn = document.getElementById("answerBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const progress = document.getElementById("progress");
+      const instructionText = document.getElementById("instructionText");
+      const zonesContainer = document.getElementById("zones");
+      const liveRegion = document.getElementById("liveRegion");
+      const toast = document.getElementById("toast");
+      let currentLevel = "people";
+      let selectedCard = null;
+      let toastTimer = null;
+      let drag = null;
+
+      function shuffled(items) {
+        const copy = [...items];
+        for (let i = copy.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy;
+      }
+
+      function makeCard(data) {
+        const node = template.content.firstElementChild.cloneNode(true);
+        node.dataset.id = data.id;
+        node.dataset.correct = data.answers[currentLevel];
+        node.querySelector(".card-text").textContent = data.text;
+        node.querySelector(".answer-tag").textContent = `參考答案：${getZoneName(data.answers[currentLevel])}`;
+        node.setAttribute("aria-label", `${data.text}。點選後可選擇分類，也可直接拖曳。`);
+        node.addEventListener("click", onCardClick);
+        node.addEventListener("keydown", onCardKeydown);
+        node.addEventListener("pointerdown", onPointerDown);
+        return node;
+      }
+
+      function getZoneName(zoneId) {
+        if (zoneId === "pool") return "待分類區";
+        return levels[currentLevel].zones[zoneId].name;
+      }
+
+      function clearSelection() {
+        if (selectedCard) {
+          selectedCard.classList.remove("is-selected");
+          selectedCard.setAttribute("aria-pressed", "false");
+        }
+        selectedCard = null;
+        choiceDock.classList.remove("open");
+      }
+
+      function selectCard(card) {
+        if (selectedCard === card) {
+          clearSelection();
+          return;
+        }
+        clearSelection();
+        selectedCard = card;
+        card.classList.add("is-selected");
+        card.setAttribute("aria-pressed", "true");
+        choiceDock.classList.add("open");
+        liveRegion.textContent = "已選取牌卡，請選擇分類區。";
+      }
+
+      function onCardClick(event) {
+        if (event.currentTarget.dataset.justDragged === "true") {
+          event.currentTarget.dataset.justDragged = "false";
+          return;
+        }
+        selectCard(event.currentTarget);
+      }
+
+      function onCardKeydown(event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectCard(event.currentTarget);
+        }
+        if (event.key === "Escape") clearSelection();
+      }
+
+      function moveCard(card, targetName, announce = true) {
+        const target = document.getElementById(targetName);
+        if (!target) return;
+        target.appendChild(card);
+        updateBoard();
+        if (announce) {
+          const message = `牌卡已移到「${getZoneName(targetName)}」。`;
+          liveRegion.textContent = message;
+          showToast(message);
+        }
+        clearSelection();
+      }
+
+      function onPointerDown(event) {
+        if (event.button !== 0 || drag) return;
+        const card = event.currentTarget;
+        const rect = card.getBoundingClientRect();
+        drag = {
+          card,
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          offsetX: event.clientX - rect.left,
+          offsetY: event.clientY - rect.top,
+          width: rect.width,
+          height: rect.height,
+          moved: false,
+          placeholder: null,
+          over: null
+        };
+        card.setPointerCapture(event.pointerId);
+        card.addEventListener("pointermove", onPointerMove);
+        card.addEventListener("pointerup", onPointerUp);
+        card.addEventListener("pointercancel", onPointerUp);
+      }
+
+      function beginDrag(event) {
+        const { card, width, height } = drag;
+        const placeholder = document.createElement("div");
+        placeholder.className = "placeholder";
+        placeholder.style.height = `${height}px`;
+        card.parentElement.insertBefore(placeholder, card);
+        drag.placeholder = placeholder;
+        drag.moved = true;
+        card.classList.add("is-dragging");
+        card.style.width = `${width}px`;
+        positionDraggedCard(event.clientX, event.clientY);
+        clearSelection();
+      }
+
+      function positionDraggedCard(x, y) {
+        drag.card.style.left = `${x - drag.offsetX}px`;
+        drag.card.style.top = `${y - drag.offsetY}px`;
+      }
+
+      function onPointerMove(event) {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+        if (!drag.moved && distance < 8) return;
+        event.preventDefault();
+        if (!drag.moved) beginDrag(event);
+        positionDraggedCard(event.clientX, event.clientY);
+
+        // 平板直向時分類區可能位於畫面下方；靠近上下邊緣即可一邊拖曳、一邊捲動。
+        const scrollEdge = 72;
+        if (event.clientY < scrollEdge) {
+          window.scrollBy({ top: -18, behavior: "auto" });
+        } else if (event.clientY > window.innerHeight - scrollEdge) {
+          window.scrollBy({ top: 18, behavior: "auto" });
+        }
+
+        const element = document.elementFromPoint(event.clientX, event.clientY);
+        const over = element ? element.closest(".drop-zone") : null;
+        if (drag.over !== over) {
+          if (drag.over) drag.over.classList.remove("is-over");
+          drag.over = over;
+          if (drag.over) drag.over.classList.add("is-over");
+        }
+      }
+
+      function onPointerUp(event) {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        const { card, moved, placeholder, over } = drag;
+        card.releasePointerCapture(event.pointerId);
+        card.removeEventListener("pointermove", onPointerMove);
+        card.removeEventListener("pointerup", onPointerUp);
+        card.removeEventListener("pointercancel", onPointerUp);
+
+        if (moved) {
+          if (over) {
+            over.querySelector(".card-list").appendChild(card);
+            showToast(`牌卡已移到「${getZoneName(over.dataset.zone)}」。`);
+            liveRegion.textContent = `牌卡已移到「${getZoneName(over.dataset.zone)}」。`;
+          } else if (placeholder) {
+            placeholder.parentElement.insertBefore(card, placeholder);
+          }
+          card.classList.remove("is-dragging");
+          card.removeAttribute("style");
+          card.dataset.justDragged = "true";
+          window.setTimeout(() => { card.dataset.justDragged = "false"; }, 0);
+          if (placeholder) placeholder.remove();
+          if (over) over.classList.remove("is-over");
+          updateBoard();
+        }
+        drag = null;
+      }
+
+      function updateBoard() {
+        ["pool", "zone1", "zone2", "zone3"].forEach((zone) => {
+          const count = document.getElementById(zone).children.length;
+          document.querySelector(`[data-count="${zone}"]`).textContent = count;
+        });
+        const classified = cards.length - pool.children.length;
+        progress.textContent = `已分類 ${classified}／${cards.length}`;
+
+        document.querySelectorAll(".card").forEach((card) => {
+          const currentZone = card.closest(".drop-zone").dataset.zone;
+          card.classList.toggle("correct", currentZone === card.dataset.correct);
+          card.classList.toggle("wrong", currentZone !== "pool" && currentZone !== card.dataset.correct);
+        });
+
+        if (classified === cards.length) {
+          const correctCount = document.querySelectorAll(".card.correct").length;
+          progress.textContent = `已完成 ${correctCount}／${cards.length}`;
+        }
+      }
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => toast.classList.remove("show"), 1800);
+      }
+
+      function renderLevel() {
+        const level = levels[currentLevel];
+        instructionText.innerHTML = `<strong>任務：</strong>${level.instruction}`;
+        zonesContainer.setAttribute("aria-label", level.ariaLabel);
+
+        Object.entries(level.zones).forEach(([zoneId, zone]) => {
+          document.querySelector(`[data-zone-kicker="${zoneId}"]`).textContent = zone.kicker;
+          document.querySelector(`[data-zone-title="${zoneId}"]`).textContent = zone.name;
+          document.querySelector(`[data-zone-hint="${zoneId}"]`).textContent = zone.hint;
+          document.querySelector(`.choice-btn[data-target="${zoneId}"]`).textContent = zone.name;
+        });
+
+        document.querySelectorAll(".level-btn").forEach((button) => {
+          const active = button.dataset.level === currentLevel;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-pressed", String(active));
+        });
+      }
+
+      function switchLevel(nextLevel) {
+        if (nextLevel === currentLevel || !levels[nextLevel]) return;
+        const hasWork = pool.children.length < cards.length;
+        if (hasWork && !window.confirm("切換關卡會清除目前的分類結果，要繼續嗎？")) return;
+        currentLevel = nextLevel;
+        renderLevel();
+        resetBoard(`已進入${levels[currentLevel].label}。`);
+        liveRegion.textContent = `已切換到${levels[currentLevel].label}。`;
+      }
+
+      function resetBoard(message = "牌卡已重新排列，可以開始分類！") {
+        clearSelection();
+        document.body.classList.remove("show-answers");
+        answerBtn.textContent = "顯示參考答案";
+        answerBtn.setAttribute("aria-pressed", "false");
+        pool.replaceChildren(...shuffled(cards).map(makeCard));
+        document.getElementById("zone1").replaceChildren();
+        document.getElementById("zone2").replaceChildren();
+        document.getElementById("zone3").replaceChildren();
+        updateBoard();
+        showToast(message);
+        liveRegion.textContent = "牌卡已重置並重新排列。";
+      }
+
+      document.querySelectorAll(".level-btn").forEach((button) => {
+        button.addEventListener("click", () => switchLevel(button.dataset.level));
+      });
+
+      document.querySelectorAll(".choice-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+          if (selectedCard) moveCard(selectedCard, button.dataset.target);
+        });
+      });
+
+      answerBtn.addEventListener("click", () => {
+        const showing = document.body.classList.toggle("show-answers");
+        answerBtn.textContent = showing ? "隱藏參考答案" : "顯示參考答案";
+        answerBtn.setAttribute("aria-pressed", String(showing));
+        updateBoard();
+        showToast(showing ? "已顯示每張牌卡的參考答案。" : "已隱藏參考答案。");
+      });
+
+      resetBtn.addEventListener("click", () => {
+        if (window.confirm("要清空目前的分類並重新開始嗎？")) resetBoard();
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") clearSelection();
+      });
+
+      renderLevel();
+      resetBoard();
+    })();
+  </script>
+</body>
+</html>
